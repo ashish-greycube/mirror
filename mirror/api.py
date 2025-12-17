@@ -17,7 +17,7 @@ def synchronize_sales_invoice_to_government_site(doc, docname):
     API_SECRET = settings.api_secret
 
     # Fields To Include In API Body
-    sales_invoice_parent_fields = ["custom_payment_type","naming_series","customer","company","posting_date","debit_to","taxes_and_charges"]
+    sales_invoice_parent_fields = ["custom_payment_type","customer","company","posting_date","debit_to","taxes_and_charges"]
     sales_invoice_item_fields = ["item_code","rate","uom","qty","conversion_factor","tax_rate"]
     sales_invoice_tax_fields = ["charge_type","account_head","cost_center","rate","description"]
 
@@ -51,7 +51,7 @@ def synchronize_sales_invoice_to_government_site(doc, docname):
         taxes_list.append(tax_dict)
         tax_dict = {}
     out['taxes'] = taxes_list
-    
+    print(out, "=========================")
     # API Call To Create Sales Invoice On Government Site
     url = f"{URL}api/resource/Sales Invoice"
     payload = out
