@@ -67,11 +67,47 @@ def synchronize_sales_invoice_to_government_site(doc, docname):
         frappe.db.set_value("Sales Invoice", docname, "custom_gov_sales_invoice_reference", result['data']['name'])
         frappe.msgprint(f"Sales Invoice Created On GOV Site: {response.json()['data']['name']}", alert=True)
     else:
-        error = frappe.parse_json(response.json())
-        if "_server_messages" in error:
-            exception = frappe.parse_json(error['_server_messages'])
-            message = frappe.parse_json(exception[0]).message
-            frappe.throw(message)
-        else:
-            message = str(error)
-            frappe.throw(message)
+        handle_gov_site_error(response, out, docname)
+
+
+def handle_gov_site_error(response, payload, docname):
+    try:
+        error = response.json()
+    except ValueError:
+        error = {"raw_response": response.text}
+
+    messages = get_server_messages(error)
+
+    # ensure_ascii=False keeps Arabic text readable instead of م...
+    log_message = "\n\n".join([
+        f"Status Code: {response.status_code}",
+        f"Error Type: {error.get('exc_type', '')}",
+        "Messages:\n" + "\n".join(f"{i}. {m}" for i, m in enumerate(messages, 1)),
+        "Exception:\n" + str(error.get("exception") or error.get("exc") or ""),
+        "Payload Sent:\n" + json.dumps(payload, indent=2, ensure_ascii=False, default=str),
+        "Full Response:\n" + json.dumps(error, indent=2, ensure_ascii=False, default=str),
+    ])
+    log = frappe.log_error(
+        title=f"GOV Sync Failed: {docname}",
+        message=log_message,
+        reference_doctype="Sales Invoice",
+        reference_name=docname,
+    )
+    # Keep the log even though frappe.throw rolls back
+    frappe.db.commit()
+
+    if not messages:
+        messages = [f"GOV site error {response.status_code}"]
+    frappe.throw(
+        "<br>".join(f"{i}. {m}" for i, m in enumerate(messages, 1))
+        + f"<br><br>Error Log: {log.name}",
+        title="GOV Site Sync Failed",
+    )
+
+
+def get_server_messages(error):
+    messages = []
+    for raw in frappe.parse_json(error.get("_server_messages") or "[]"):
+        msg = frappe.parse_json(raw)
+        messages.append(msg.get("message") if isinstance(msg, dict) else str(msg))
+    return messages
