@@ -100,7 +100,7 @@ def handle_gov_site_error(response, payload, docname):
         messages = [f"GOV site error {response.status_code}"]
     frappe.throw(
         "<br>".join(f"{i}. {m}" for i, m in enumerate(messages, 1))
-        + f"<br><br>Error Log: {log.name}",
+        + f'<br><br>Error Log: <a href="{frappe.utils.get_url_to_form("Error Log", log.name)}" target="_blank">{log.name}</a>',
         title="GOV Site Sync Failed",
     )
 
